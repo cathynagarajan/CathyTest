@@ -1,7 +1,7 @@
 # Kubernetes Repository Knowledge Graph
 
 - **Repository Root**: `/home/krithika/workspace/CathyTest`
-- **Last Updated**: `2026-11-12T01:59:55.673477+00:00`
+- **Last Updated**: `2026-11-12T02:00:02.446343+00:00`
 - **Indexed Files**: `1`
 - **Total Graph Nodes**: `4`
 - **Total Graph Edges**: `4`
