@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💡 Codebase Graphical Knowledge Graph</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --panel: #111827;
+      --panel-alt: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --on-bg: linear-gradient(135deg, #0284c7 0%, #6366f1 100%);
+      --on-border: #38bdf8;
+      --off-bg: #0f172a;
+      --off-border: #334155;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Control Deck: Row 1 (Search + Top-10 Ranked Result ON/OFF Buttons) + Row 2 (Node Type ON/OFF Buttons) */
+    .kg-control-deck {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    /* Row 1: Search Box + Top-10 Ranked Results alongside the top line */
+    .kg-top-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 38px;
+    }
+    .kg-search-wrap {
+      position: relative;
+      flex: 0 0 340px;
+      display: flex;
+      align-items: center;
+    }
+    .kg-search-icon {
+      position: absolute;
+      left: 11px;
+      font-size: 0.88rem;
+      color: var(--accent);
+      pointer-events: none;
+    }
+    .kg-search-input {
+      width: 100%;
+      padding: 8px 30px 8px 34px;
+      border-radius: 7px;
+      border: 1px solid #475569;
+      background: #070b14;
+      color: var(--text);
+      font-size: 0.84rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .kg-search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    .kg-search-clear {
+      position: absolute;
+      right: 8px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 2px 4px;
+      display: none;
+    }
+    .kg-search-clear:hover { color: #fff; }
+
+    /* Top-line Ranked Result ON/OFF Buttons strip */
+    .kg-results-strip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: thin;
+    }
+    .kg-results-strip::-webkit-scrollbar { height: 4px; }
+    .kg-results-strip::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    /* Copy Query 2 Button & Ask Input */
+    .kg-ask-input {
+      width: 210px;
+      padding: 7px 10px;
+      border-radius: 7px;
+      border: 1px solid #475569;
+      background: #070b14;
+      color: var(--text);
+      font-size: 0.78rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      outline: none;
+      flex-shrink: 0;
+    }
+    .kg-ask-input:focus {
+      border-color: #a855f7;
+    }
+    .kg-copy-q2-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 7px;
+      border: 1px solid #a855f7;
+      background: linear-gradient(135deg, #7c3aed 0%, #0284c7 100%);
+      color: #ffffff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      box-shadow: 0 0 12px rgba(124, 58, 237, 0.35);
+      transition: all 0.15s ease;
+    }
+    .kg-copy-q2-btn:hover {
+      filter: brightness(1.12);
+      border-color: #38bdf8;
+    }
+    .kg-copy-q2-btn.copied {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      border-color: #4ade80;
+    }
+
+    /* Row 2: query_kg.py CLI Flag Checkboxes Bar */
+    .kg-flags-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 4px 8px;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(51, 65, 85, 0.7);
+      border-radius: 7px;
+    }
+    .flag-chk-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 0.74rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #cbd5e1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      transition: all 0.12s ease;
+    }
+    .flag-chk-label:hover {
+      border-color: #64748b;
+      color: #ffffff;
+    }
+    .flag-chk-label.checked {
+      background: rgba(124, 58, 237, 0.2);
+      border-color: #a855f7;
+      color: #f3e8ff;
+    }
+    .flag-chk-label input[type="checkbox"] {
+      accent-color: #a855f7;
+      margin: 0;
+      cursor: pointer;
+    }
+    .cmd-preview-pill {
+      margin-left: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.73rem;
+      color: #38bdf8;
+      background: #070b14;
+      border: 1px solid #1e293b;
+      padding: 3px 9px;
+      border-radius: 5px;
+      white-space: nowrap;
+      max-width: 440px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Copied Query 2 Prompt Preview Drawer */
+    .kg-prompt-drawer {
+      position: absolute;
+      bottom: 54px;
+      right: 14px;
+      width: min(680px, calc(100vw - 28px));
+      max-height: 320px;
+      background: rgba(15, 23, 42, 0.97);
+      border: 1px solid #a855f7;
+      border-radius: 10px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+      display: none;
+      flex-direction: column;
+      z-index: 30;
+      overflow: hidden;
+    }
+    .kg-prompt-drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #1e1b4b;
+      border-bottom: 1px solid #334155;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #e9d5ff;
+    }
+    .kg-prompt-drawer pre {
+      margin: 0;
+      padding: 10px 12px;
+      font-size: 0.73rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #e2e8f0;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Row 3: Node Options ON/OFF Toggle Buttons below the text box */
+    .kg-node-options-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .kg-row-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-right: 4px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Shared ON/OFF Toggle Button Style */
+    .toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      transition: all 0.14s ease;
+      border: 1px solid var(--off-border);
+      background: var(--off-bg);
+      color: var(--muted);
+    }
+    .toggle-btn:hover {
+      border-color: #64748b;
+      color: #e2e8f0;
+    }
+    .toggle-btn.is-on {
+      background: rgba(14, 165, 233, 0.16);
+      border-color: var(--on-border);
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.22);
+    }
+    .toggle-btn.result-btn.is-on {
+      background: var(--on-bg);
+      border-color: #7dd3fc;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+    }
+    .toggle-state-pill {
+      font-size: 0.63rem;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+      font-family: ui-monospace, monospace;
+      background: rgba(148, 163, 184, 0.15);
+      color: #94a3b8;
+    }
+    .toggle-btn.is-on .toggle-state-pill {
+      background: rgba(34, 197, 94, 0.25);
+      color: #4ade80;
+      border: 1px solid rgba(74, 222, 128, 0.4);
+    }
+    .type-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .rank-badge {
+      background: rgba(15, 23, 42, 0.65);
+      color: #38bdf8;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: ui-monospace, monospace;
+      font-size: 0.7rem;
+      font-weight: 800;
+    }
+    .toggle-btn.result-btn.is-on .rank-badge {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    /* Main Graphical Knowledge Graph Viewport */
+    .kg-graph-stage {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 0.55) 0%, rgba(11, 17, 32, 0.98) 75%),
+        linear-gradient(rgba(51, 65, 85, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(51, 65, 85, 0.12) 1px, transparent 1px);
+      background-size: 100% 100%, 36px 36px, 36px 36px;
+      cursor: grab;
+    }
+    .kg-graph-stage.dragging { cursor: grabbing; }
+    #kg-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Floating Overlay HUD inside Graph Canvas */
+    .kg-hud-top-left {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .kg-hud-top-right {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      display: flex;
+      gap: 6px;
+    }
+    .hud-btn {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .hud-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Bottom Node Inspector Bar */
+    .kg-inspector-bar {
+      position: absolute;
+      bottom: 12px;
+      left: 14px;
+      right: 14px;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.8rem;
+      color: #e2e8f0;
+    }
+    .inspector-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .inspector-meta code {
+      color: #7dd3fc;
+      background: rgba(2, 132, 199, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: ui-monospace, monospace;
+    }
+    .kg-node-group { cursor: pointer; }
+    .kg-node-group:hover circle.node-core {
+      filter: drop-shadow(0 0 10px #38bdf8);
+      stroke-width: 3px;
+    }
+    .kg-node-group .node-label-auto {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s ease;
+    }
+    .kg-node-group:hover .node-label-auto,
+    svg.kg-zoomed-in .kg-node-group .node-label-auto {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- Control Deck -->
+  <div class="kg-control-deck">
+    <!-- Row 1: Search Text Box + Copy Query 2 (--#<N>) Button + All Results & Top 10 Ranked Result (#1..#10) ON/OFF Toggle Buttons -->
+    <div class="kg-top-line">
+      <div class="kg-search-wrap">
+        <span class="kg-search-icon">🔍</span>
+        <input type="text" id="kg-search-input" class="kg-search-input"
+               placeholder='Search text (same as query_kg.py "search text" /S)...'
+               oninput="onSearchInput()">
+        <button type="button" id="kg-search-clear" class="kg-search-clear" onclick="clearSearch()" title="Clear search">✕</button>
+      </div>
+      <input type="text" id="kg-ask-input" class="kg-ask-input"
+             placeholder="Optional LLM ask (--ask)..."
+             oninput="updateCliCommandPreview()">
+      <button type="button" id="kg-copy-q2-btn" class="kg-copy-q2-btn" onclick="copyQuery2ToClipboard()"
+              title='Execute Query 2 (query_kg.py "searchtext" --#<N> [checked flags]) and copy LLM prompt to clipboard'>
+        <span id="kg-copy-q2-label">📋 Copy --#1 /I</span>
+      </button>
+      <div class="kg-results-strip" id="kg-results-strip"></div>
+    </div>
+
+    <!-- Row 2: All Available query_kg.py Flag Options as Checkboxes -->
+    <div class="kg-flags-line" id="kg-flags-line"></div>
+
+    <!-- Row 3: Node Option Selectors (ON/OFF Toggle Buttons) below the text box -->
+    <div class="kg-node-options-line" id="kg-node-options-line"></div>
+  </div>
+
+  <!-- Single Graphical Knowledge Graph Canvas for the Full Codebase -->
+  <div class="kg-graph-stage" id="kg-graph-stage">
+    <svg id="kg-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow-out" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#22c55e" opacity="0.85"/>
+        </marker>
+        <marker id="arrow-in" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b" opacity="0.85"/>
+        </marker>
+        <marker id="arrow-net" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b" opacity="0.7"/>
+        </marker>
+      </defs>
+      <g id="kg-viewport"></g>
+    </svg>
+
+    <div class="kg-hud-top-left" id="kg-hud-status">
+      <span>💡 <strong id="hud-mode-title">Full Codebase Knowledge Graph</strong></span>
+      <span>•</span>
+      <span>Total Matches: <strong id="hud-match-count" style="color:#c084fc;">0</strong></span>
+      <span>•</span>
+      <span>Graph Nodes: <strong id="hud-node-count" style="color:#38bdf8;">0</strong></span>
+      <span>•</span>
+      <span>Synapses/Edges: <strong id="hud-edge-count" style="color:#4ade80;">0</strong></span>
+    </div>
+
+    <div class="kg-hud-top-right">
+      <button type="button" id="hud-3d-spin-btn" class="hud-btn" onclick="toggle3DAutoSpin()" title="Toggle 3D Spatial Auto-Rotation (Drag to 3D Orbit, Shift+Drag to Pan)" style="border-color:#475569;color:#94a3b8;font-weight:700;">🌐 3D Spin: OFF</button>
+      <button type="button" class="hud-btn" onclick="clearAndCompactGraphMemory()" title="Clear cached graph DOM/memory and reset to clean 3D view" style="border-color:#10b981;color:#34d399;font-weight:700;">🧹 Clear Memory</button>
+      <button type="button" class="hud-btn" onclick="zoomBy(1.22)" title="Zoom In (3D Perspective)">＋ Zoom In</button>
+      <button type="button" class="hud-btn" onclick="zoomBy(0.82)" title="Zoom Out (3D Perspective)">－ Zoom Out</button>
+      <button type="button" class="hud-btn" onclick="resetTransform()" title="Reset 3D Orbit, Pan & Zoom">🧭 Reset 3D Orbit</button>
+    </div>
+
+    <div class="kg-prompt-drawer" id="kg-prompt-drawer">
+      <div class="kg-prompt-drawer-header">
+        <span id="kg-prompt-drawer-title">✅ Copied Query 2 Prompt to Clipboard</span>
+        <button type="button" class="hud-btn" style="padding:2px 8px;" onclick="document.getElementById('kg-prompt-drawer').style.display='none'">✕ Close</button>
+      </div>
+      <pre id="kg-prompt-drawer-body"></pre>
+    </div>
+
+    <div class="kg-inspector-bar" id="kg-inspector-bar">
+      <div class="inspector-meta" id="inspector-content">
+        <span>Enter search text above or click any <strong>#1–#10</strong> result button on the top line to focus the Knowledge Graph on that result node.</span>
+      </div>
+      <div id="inspector-actions" style="flex-shrink:0;"></div>
+    </div>
+  </div>
+
+  <script>
+    const KG_DATA = {"metadata": {"repository": "/home/krithika/workspace/CathyTest", "generated_at": "2026-11-12T01:59:55.673477+00:00", "total_files_indexed": 1, "total_nodes": 4, "total_edges": 4, "node_type_counts": {"document_file": 1, "document_section": 1, "topic_entity": 2}}, "nodes": [{"id": "topic:cathytest", "type": "topic_entity", "name": "cathytest", "file_path": "cathytest.txt", "description": "Shared domain topic 'cathytest' connecting multi-modal documents and workspace chats", "metadata": {"keyword": "cathytest"}}, {"id": "topic:test", "type": "topic_entity", "name": "test", "file_path": "cathytest.txt", "description": "Shared domain topic 'test' connecting multi-modal documents and workspace chats", "metadata": {"keyword": "test"}}, {"id": "doc_file:cathytest.txt", "type": "document_file", "name": "cathytest.txt", "file_path": "cathytest.txt", "description": "Document cathytest.txt (1 section(s)): test", "metadata": {"format": "txt", "section_count": 1, "size_bytes": 4, "topics": ["cathytest", "test"]}}, {"id": "doc_sec:cathytest.txt:1", "type": "document_section", "name": "cathytest.txt [Section 1]", "file_path": "cathytest.txt", "description": "Section 1 of cathytest.txt: test", "metadata": {"section_index": 1, "section_type": "section", "text_excerpt": "test", "char_count": 4}}], "edges": [{"source": "doc_file:cathytest.txt", "target": "topic:cathytest", "relation": "MENTIONS_TOPIC", "metadata": {"count": 1}}, {"source": "doc_file:cathytest.txt", "target": "topic:test", "relation": "MENTIONS_TOPIC", "metadata": {"count": 1}}, {"source": "doc_file:cathytest.txt", "target": "doc_sec:cathytest.txt:1", "relation": "CONTAINS_SECTION", "metadata": {}}, {"source": "doc_sec:cathytest.txt:1", "target": "topic:test", "relation": "MENTIONS_TOPIC", "metadata": {"count": 1}}], "initial_query": "", "initial_match_ids": []};
+    const NODE_MAP = new Map();
+    const OUT_EDGES = new Map();
+    const IN_EDGES = new Map();
+    const DEGREE_MAP = new Map();
+
+    const TYPE_COLORS = {
+      cluster_node: '#10b981',
+      cluster_service: '#06b6d4',
+      k8s_resource: '#3b82f6',
+      network_device: '#14b8a6',
+      api_endpoint: '#a855f7',
+      python_module: '#f59e0b',
+      python_class: '#ec4899',
+      python_function: '#6366f1',
+      shell_script: '#22c55e',
+      js_function: '#eab308',
+      sql_file: '#0ea5e9',
+      html_template: '#f97316',
+      dockerfile: '#38bdf8',
+      yaml_config: '#8b5cf6',
+      env_config: '#64748b',
+      config_file: '#94a3b8',
+      requirements_file: '#cbd5e1',
+      document: '#e879f9',
+      document_file: '#c084fc',
+      document_section: '#d8b4fe',
+      document_table: '#2dd4bf',
+      image_document: '#fb7185',
+      audio_transcript: '#f43f5e',
+      topic_entity: '#facc15',
+      chat_session: '#34d399',
+      chat_turn: '#6ee7b7'
+    };
+
+    KG_DATA.nodes.forEach(n => {
+      NODE_MAP.set(n.id, n);
+      OUT_EDGES.set(n.id, []);
+      IN_EDGES.set(n.id, []);
+    });
+    KG_DATA.edges.forEach(e => {
+      if (OUT_EDGES.has(e.source)) OUT_EDGES.get(e.source).push(e);
+      if (IN_EDGES.has(e.target)) IN_EDGES.get(e.target).push(e);
+    });
+    KG_DATA.nodes.forEach(n => {
+      const deg = (OUT_EDGES.get(n.id) || []).length + (IN_EDGES.get(n.id) || []).length;
+      DEGREE_MAP.set(n.id, deg);
+    });
+
+    const ALL_TYPES = Object.keys(KG_DATA.metadata.node_type_counts || {});
+    const enabledTypes = new Set(ALL_TYPES);
+
+    let top10Results = [];
+    let totalMatchesCount = KG_DATA.nodes.length;
+    let selectedResultMode = 'all';
+    let inspectedNodeId = null;
+
+    // All available CLI flag options in query_kg.py represented as checkboxes
+    const CLI_FLAG_OPTIONS = [
+      { flag: '/I', label: '/I (--investigate)', desc: 'Instruct LLM: INVESTIGATE ONLY — NO CODE UPDATES', defaultChecked: true },
+      { flag: '/S', label: '/S (--summary)', desc: 'Summary-only mode (#1, #2, #3...)', defaultChecked: true },
+      { flag: '--json', label: '--json', desc: 'Output matching hits as JSON', defaultChecked: false },
+      { flag: '--stats', label: '--stats', desc: 'Display Knowledge Graph statistics', defaultChecked: false },
+      { flag: '--update', label: '--update (-u)', desc: 'Incrementally update Knowledge Graph & global.md', defaultChecked: false },
+      { flag: '--rebuild', label: '--rebuild (-r)', desc: 'Force full rebuild of the Knowledge Graph', defaultChecked: false },
+      { flag: '--sync-chats', label: '--sync-chats', desc: 'Index Zed/Antigravity chat transcripts & chats/ folder into Knowledge Graph', defaultChecked: false },
+      { flag: '--sync-docs', label: '--sync-docs', desc: 'Synchronize man/ pages, wiki index, repo.md, global.md', defaultChecked: false },
+      { flag: '--sap-check', label: '--sap-check', desc: 'Run SAP S/4HANA & HANA license/backup check', defaultChecked: false },
+      { flag: '--mojibake-audit', label: '--mojibake-audit', desc: 'Audit Git delta for UTF-8/CP1252 mojibake', defaultChecked: false },
+      { flag: '--mojibake-fix', label: '--mojibake-fix', desc: 'Audit and repair mojibake on Git delta', defaultChecked: false },
+      { flag: '--vuln-scan', label: '--vuln-scan', desc: 'Scan Git delta for security vulnerabilities (SEC001-SEC006)', defaultChecked: false },
+      { flag: '--pre-commit-hook', label: '--pre-commit-hook', desc: 'Run full Git pre-commit hook check suite', defaultChecked: false },
+      { flag: '--sync-global', label: '--sync-global', desc: 'Force-propagate query_kg.py across all folders in global.md', defaultChecked: false },
+      { flag: '--install-hooks', label: '--install-hooks', desc: 'Install or refresh .git/hooks/pre-commit', defaultChecked: false },
+      { flag: '--commit-push', label: '--commit-push', desc: 'Stage, commit (running pre-commit hook), and push dirty repo', defaultChecked: false }
+    ];
+    const activeCliFlags = new Set(CLI_FLAG_OPTIONS.filter(o => o.defaultChecked).map(o => o.flag));
+
+    function renderCliFlagCheckboxes() {
+      const bar = document.getElementById('kg-flags-line');
+      if (!bar) return;
+      let html = `<span class="kg-row-label">query_kg.py Flags:</span>`;
+      CLI_FLAG_OPTIONS.forEach(opt => {
+        const isChecked = activeCliFlags.has(opt.flag);
+        html += `
+          <label class="flag-chk-label ${isChecked ? 'checked' : ''}" title="${esc(opt.desc)}">
+            <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleCliFlag('${esc(opt.flag)}', this.checked)">
+            <span>${esc(opt.label)}</span>
+          </label>
+        `;
+      });
+      html += `<span class="cmd-preview-pill" id="kg-cmd-preview"></span>`;
+      bar.innerHTML = html;
+      updateCliCommandPreview();
+    }
+
+    function toggleCliFlag(flag, checked) {
+      if (checked) activeCliFlags.add(flag);
+      else activeCliFlags.delete(flag);
+      renderCliFlagCheckboxes();
+    }
+
+    function getActiveHitSelector() {
+      if (selectedResultMode !== 'all') {
+        return String(Number(selectedResultMode) + 1);
+      }
+      return '1';
+    }
+
+    function updateCliCommandPreview() {
+      const q = (document.getElementById('kg-search-input')?.value || '').trim();
+      const ask = (document.getElementById('kg-ask-input')?.value || '').trim();
+      const hitNum = getActiveHitSelector();
+      const flagsArr = Array.from(activeCliFlags);
+      const qPart = q ? `"${q}"` : '';
+      const askPart = ask ? ` "${ask}"` : '';
+      const flagsStr = flagsArr.join(' ');
+      const cmdStr = `query_kg.py ${qPart} --#${hitNum} ${flagsStr}${askPart}`.replace(/\s+/g, ' ').trim();
+
+      const previewEl = document.getElementById('kg-cmd-preview');
+      if (previewEl) {
+        previewEl.textContent = cmdStr;
+        previewEl.title = cmdStr;
+      }
+      const btnLabel = document.getElementById('kg-copy-q2-label');
+      if (btnLabel) {
+        const iFlag = activeCliFlags.has('/I') ? ' /I' : '';
+        btnLabel.textContent = `📋 Copy --#${hitNum}${iFlag}`;
+      }
+    }
+
+    function buildClientSideQuery2Prompt(hitNum, targetNode, qStr, askStr, investigateOnly) {
+      const repoRoot = KG_DATA.metadata.repository || '/home/sanjay/container/kubernetes';
+      const relPath = targetNode.file_path || '';
+      const lineno = (targetNode.metadata && targetNode.metadata.lineno) ? targetNode.metadata.lineno : null;
+      const fileUri = relPath ? `file://${repoRoot}/${relPath}${lineno ? '#L' + lineno : ''}` : `file://${repoRoot}/knowledge_graph/query_results.html#hit-kg-table-${hitNum}`;
+      const kgTableUri = `file://${repoRoot}/knowledge_graph/query_results.html#hit-kg-table-${hitNum}`;
+      const lineHint = lineno ? `Line=${lineno}` : (relPath ? 'Full file' : 'Graph entity');
+      const outs = (OUT_EDGES.get(targetNode.id) || []).slice(0, 12).map(e => {
+        const tn = NODE_MAP.get(e.target) || {};
+        return `--[${e.relation}]--> ${tn.name || e.target} (${tn.file_path || tn.type || 'entity'})`;
+      }).join(', ') || 'none';
+      const ins = (IN_EDGES.get(targetNode.id) || []).slice(0, 12).map(e => {
+        const sn = NODE_MAP.get(e.source) || {};
+        return `<--[${e.relation}]-- ${sn.name || e.source} (${sn.file_path || sn.type || 'entity'})`;
+      }).join(', ') || 'none';
+
+      const modeHeader = investigateOnly
+        ? 'INSTRUCTION TO LLM (LOCAL KNOWLEDGE GRAPH PREPROCESSED CONTEXT — INVESTIGATE ONLY / NO CODE UPDATES):'
+        : 'INSTRUCTION TO LLM (LOCAL KNOWLEDGE GRAPH PREPROCESSED CONTEXT):';
+      const execRule = investigateOnly
+        ? '- Execution Mode (/I): INVESTIGATE ONLY — NO CODE UPDATES. Analyze, diagnose, and answer the request without modifying, creating, or deleting any files.'
+        : `- Code Edit Rule: All code edits MUST be done using Python only (/usr/bin/python3) — do NOT use PowerShell.
+- Post-Change Rule (see ${repoRoot}/rules.md): After any edit, update man/ docs, run Delta-Only Mojibake Audit & Fix, run Pre-Commit Vulnerability Scan, run query_kg.py --update, and prompt for git commit / git push.`;
+
+      const defaultAsk = investigateOnly
+        ? '[Investigate and explain this target — NO CODE UPDATES]'
+        : '[Enter your specific request/change for the above target here]';
+      let finalAsk = askStr || defaultAsk;
+      if (investigateOnly && !finalAsk.toLowerCase().includes('no code update') && !finalAsk.toLowerCase().includes('investigate only')) {
+        finalAsk = `[INVESTIGATE ONLY — NO CODE UPDATES] ${finalAsk}`;
+      }
+
+      return [
+        modeHeader,
+        `- Repository Root: ${repoRoot}`,
+        `- Preprocessed Context Guidance: This context was locally assembled via 'query_kg.py' to provide rich upfront context (exact target file/lines, code snippet, connected Knowledge Graph dependencies, and tokenized files) and reduce blind discovery token usage. Start from the context below, and inspect or search the codebase further as needed.`,
+        execRule,
+        '',
+        `Context for Hit #${hitNum} (Query: ${qStr || targetNode.name}):`,
+        `  - Entity:      [${targetNode.type}] ${targetNode.name} (ID: ${targetNode.id})`,
+        `  - File Target: ${fileUri} (${lineHint})`,
+        `  - Description: ${targetNode.description || 'N/A'}`,
+        `  - Metadata:    ${JSON.stringify(targetNode.metadata || {})}`,
+        `  - Outgoing KG: ${outs}`,
+        `  - Incoming KG: ${ins}`,
+        '',
+        `REQUEST TO LLM (#${hitNum}: ${fileUri} (KG Table: ${kgTableUri})): ${finalAsk}`
+      ].join('\n');
+    }
+
+    function writeTextToClipboardFallback(text) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) {}
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+    }
+
+    async function copyQuery2ToClipboard() {
+      const q = (document.getElementById('kg-search-input')?.value || '').trim();
+      const ask = (document.getElementById('kg-ask-input')?.value || '').trim();
+      const hitNum = Number(getActiveHitSelector());
+      const targetNode = top10Results[hitNum - 1] || top10Results[0] || KG_DATA.nodes[0];
+      const investigateOnly = activeCliFlags.has('/I');
+      const flagsParam = Array.from(activeCliFlags).join(',');
+
+      // 1. Immediate synchronous copy using client-side builder so user-gesture clipboard always succeeds
+      let promptText = targetNode
+        ? buildClientSideQuery2Prompt(hitNum, targetNode, q, ask, investigateOnly)
+        : '';
+      if (promptText) {
+        writeTextToClipboardFallback(promptText);
+      }
+
+      // 2. If hosted via FastAPI portal, also call /api/knowledge-graph/query2 to get full AST snippet & server-side execution
+      let cliCmd = document.getElementById('kg-cmd-preview')?.textContent || `query_kg.py "${q}" --#${hitNum}`;
+      if (window.location.protocol.startsWith('http')) {
+        try {
+          const url = `/api/knowledge-graph/query2?q=${encodeURIComponent(q || (targetNode ? targetNode.name : ''))}&hit=${encodeURIComponent(String(hitNum))}&flags=${encodeURIComponent(flagsParam)}&ask=${encodeURIComponent(ask)}`;
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.prompt) {
+              promptText = data.prompt;
+              cliCmd = data.command || cliCmd;
+              writeTextToClipboardFallback(promptText);
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 3. Visual confirmation on button + preview drawer
+      const btn = document.getElementById('kg-copy-q2-btn');
+      const lbl = document.getElementById('kg-copy-q2-label');
+      if (btn && lbl) {
+        btn.classList.add('copied');
+        lbl.textContent = `✅ Copied --#${hitNum}!`;
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          updateCliCommandPreview();
+        }, 2200);
+      }
+      const drawer = document.getElementById('kg-prompt-drawer');
+      const drawerTitle = document.getElementById('kg-prompt-drawer-title');
+      const drawerBody = document.getElementById('kg-prompt-drawer-body');
+      if (drawer && drawerTitle && drawerBody) {
+        drawerTitle.textContent = `✅ Copied to Clipboard: ${cliCmd}`;
+        drawerBody.textContent = promptText;
+        drawer.style.display = 'flex';
+      }
+    }
+
+    let panX = 0, panY = 0, scale = 1;
+    let rotY = -0.45, rotX = 0.28;
+    let autoSpin3D = false, isHoveringNode = false;
+    let isDragging = false, dragMode = 'orbit', dragStartX = 0, dragStartY = 0, startRotY = -0.45, startRotX = 0.28;
+    let _scene3D = { nodes3D: new Map(), edgesToDraw: [], rankLabels: new Map(), modeTitle: '', maxR: 420 };
+
+    function esc(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function typeColor(t) {
+      return TYPE_COLORS[t] || '#38bdf8';
+    }
+
+    function renderNodeOptionButtons() {
+      const container = document.getElementById('kg-node-options-line');
+      const allOn = enabledTypes.size === ALL_TYPES.length;
+      const counts = KG_DATA.metadata.node_type_counts || {};
+
+      let html = `<span class="kg-row-label">Node Options:</span>`;
+      html += `
+        <button type="button" class="toggle-btn ${allOn ? 'is-on' : ''}" onclick="toggleAllNodeTypes()">
+          <span>All Nodes (${KG_DATA.nodes.length})</span>
+          <span class="toggle-state-pill">${allOn ? 'ON' : 'OFF'}</span>
+        </button>
+      `;
+
+      ALL_TYPES.forEach(t => {
+        const isOn = enabledTypes.has(t);
+        const cnt = counts[t] || 0;
+        const col = typeColor(t);
+        html += `
+          <button type="button" class="toggle-btn ${isOn ? 'is-on' : ''}" onclick="toggleNodeType('${esc(t)}')" title="Toggle ${esc(t)} nodes ON/OFF">
+            <span class="type-dot" style="background:${col}; opacity:${isOn ? 1 : 0.35};"></span>
+            <span>${esc(t)} (${cnt})</span>
+            <span class="toggle-state-pill">${isOn ? 'ON' : 'OFF'}</span>
+          </button>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function toggleAllNodeTypes() {
+      if (enabledTypes.size === ALL_TYPES.length) {
+        enabledTypes.clear();
+      } else {
+        ALL_TYPES.forEach(t => enabledTypes.add(t));
+      }
+      renderNodeOptionButtons();
+      recomputeResultsAndGraph();
+    }
+
+    function toggleNodeType(typeName) {
+      if (enabledTypes.has(typeName)) {
+        enabledTypes.delete(typeName);
+      } else {
+        enabledTypes.add(typeName);
+      }
+      renderNodeOptionButtons();
+      recomputeResultsAndGraph();
+    }
+
+    // Parse query expression identically to query_kg.py `parse_query_expression` (supporting `/S` or `/s` flag)
+    function parseQueryExpr(qStr) {
+      const cleaned = (qStr || '').replace(/(?:^|\s)\/[sSiI](?=\s|$)/g, ' ').trim();
+      if (!cleaned) return [];
+      const tokens = [];
+      let buf = '';
+      let i = 0;
+      while (i < cleaned.length) {
+        const ch = cleaned[i];
+        if (ch === '"' || ch === "'") {
+          const q = ch; i++;
+          let phrase = '';
+          while (i < cleaned.length && cleaned[i] !== q) phrase += cleaned[i++];
+          if (i < cleaned.length && cleaned[i] === q) i++;
+          if (buf.trim()) { tokens.push({t:'TERM', v:buf.trim().toLowerCase()}); buf=''; }
+          if (phrase.trim()) tokens.push({t:'TERM', v:phrase.trim().toLowerCase()});
+        } else if (ch === '+') {
+          if (buf.trim()) { tokens.push({t:'TERM', v:buf.trim().toLowerCase()}); buf=''; }
+          tokens.push({t:'AND'}); i++;
+        } else if (ch === ',') {
+          if (buf.trim()) { tokens.push({t:'TERM', v:buf.trim().toLowerCase()}); buf=''; }
+          tokens.push({t:'OR'}); i++;
+        } else {
+          buf += ch; i++;
+        }
+      }
+      if (buf.trim()) {
+        buf.trim().split(/\s+/).forEach(w => {
+          if (w) tokens.push({t:'TERM', v:w.toLowerCase()});
+        });
+      }
+      const orGroups = [];
+      let curAnd = [];
+      tokens.forEach(tok => {
+        if (tok.t === 'TERM') curAnd.push(tok.v);
+        else if (tok.t === 'OR') {
+          if (curAnd.length) { orGroups.push(curAnd); curAnd = []; }
+        }
+      });
+      if (curAnd.length) orGroups.push(curAnd);
+      return orGroups;
+    }
+
+    // Document priority rank identical to `search_kg()` SQL CASE in query_kg.py
+    function docPriorityRank(n) {
+      if (n.type !== 'document') return 8;
+      const fp = n.file_path || '';
+      if (fp === 'sap_install/README.md' || fp === 'agent/tower/sap/sap_install/README.md') return 0;
+      if (fp === 'README.md' || fp === 'agent/tower/sap/README.md') return 1;
+      if (fp === 'man/SAP_S4HANA_TOWER_GUIDE.md') return 2;
+      if (fp === 'man/SAP_LICENSE_RENEWAL_GUIDE.md') return 3;
+      if (fp === 'agent/tower/sap/sap_install/Makefile' || fp === 'sap_install/Makefile' || fp === 'Makefile') return 4;
+      if (fp.startsWith('man/man8/sap-')) return 5;
+      if (fp.startsWith('agent/tower/sap/') || fp.startsWith('sap_install/')) return 6;
+      return 7;
+    }
+
+    // Exact match & ordering function matching `query_kg.py "search text" /S` (#1, #2, #3...)
+    function matchAndRankNodes(orGroups) {
+      const allTerms = [];
+      orGroups.forEach(g => g.forEach(t => allTerms.push(t)));
+
+      const matched = KG_DATA.nodes.filter(n => {
+        if (!enabledTypes.has(n.type)) return false;
+        if (!orGroups.length) return true;
+        const metaJson = JSON.stringify(n.metadata || {}).toLowerCase();
+        const hay = `${(n.id || '').toLowerCase()} ${(n.type || '').toLowerCase()} ${(n.name || '').toLowerCase()} ${(n.file_path || '').toLowerCase()} ${(n.description || '').toLowerCase()} ${metaJson}`;
+        return orGroups.some(andGroup => andGroup.every(term => hay.includes(term)));
+      });
+
+      if (!allTerms.length) {
+        // When search box is empty, rank by connectivity degree so the top 10 hubs appear on the top bar
+        return matched.slice().sort((a, b) => (DEGREE_MAP.get(b.id) || 0) - (DEGREE_MAP.get(a.id) || 0));
+      }
+
+      function tierRank(n) {
+        const nameL = (n.name || '').toLowerCase();
+        const idL = (n.id || '').toLowerCase();
+        if (allTerms.some(t => nameL === t)) return 0;
+        if (allTerms.some(t => idL === t)) return 1;
+        if (allTerms.some(t => nameL.includes(t))) return 2;
+        return 3;
+      }
+
+      return matched.slice().sort((a, b) => {
+        const tA = tierRank(a), tB = tierRank(b);
+        if (tA !== tB) return tA - tB;
+        const dA = docPriorityRank(a), dB = docPriorityRank(b);
+        if (dA !== dB) return dA - dB;
+        const tyCmp = String(a.type || '').localeCompare(String(b.type || ''));
+        if (tyCmp !== 0) return tyCmp;
+        const nmCmp = String(a.name || '').localeCompare(String(b.name || ''));
+        if (nmCmp !== 0) return nmCmp;
+        return String(a.file_path || '').localeCompare(String(b.file_path || ''));
+      });
+    }
+
+    function onSearchInput() {
+      const q = document.getElementById('kg-search-input').value;
+      document.getElementById('kg-search-clear').style.display = q ? 'block' : 'none';
+      selectedResultMode = 'all';
+      recomputeResultsAndGraph();
+    }
+
+    function clearSearch() {
+      const inp = document.getElementById('kg-search-input');
+      inp.value = '';
+      document.getElementById('kg-search-clear').style.display = 'none';
+      selectedResultMode = 'all';
+      recomputeResultsAndGraph();
+    }
+
+    function toggleResultButton(mode) {
+      if (mode === 'all') {
+        selectedResultMode = 'all';
+      } else {
+        const idx = Number(mode);
+        if (selectedResultMode === idx) {
+          selectedResultMode = 'all';
+        } else {
+          selectedResultMode = idx;
+          if (top10Results[idx]) {
+            inspectedNodeId = top10Results[idx].id;
+          }
+        }
+      }
+      renderTopLineResultButtons();
+      renderGraphicalKnowledgeGraph();
+    }
+
+    function focusNodeInGraph(nodeId) {
+      const n = NODE_MAP.get(nodeId);
+      if (!n) return;
+      inspectedNodeId = nodeId;
+      const existingIdx = top10Results.findIndex(r => r.id === nodeId);
+      if (existingIdx !== -1) {
+        selectedResultMode = existingIdx;
+      } else {
+        top10Results = [n, ...top10Results.slice(0, 9)];
+        selectedResultMode = 0;
+      }
+      renderTopLineResultButtons();
+      renderGraphicalKnowledgeGraph();
+    }
+
+    // Render Row 1 Right Strip: "All Results" ON/OFF button + Top-10 Ranked Result (#1..#10) ON/OFF buttons
+    function renderTopLineResultButtons() {
+      const strip = document.getElementById('kg-results-strip');
+      const q = (document.getElementById('kg-search-input').value || '').trim();
+      const isAllOn = selectedResultMode === 'all';
+      const allLabel = q ? `All Results (${top10Results.length})` : `All Results`;
+
+      let html = `
+        <button type="button" class="toggle-btn result-btn ${isAllOn ? 'is-on' : ''}" onclick="toggleResultButton('all')" title="Toggle All Results view ON/OFF">
+          <span>🌐 ${esc(allLabel)}</span>
+          <span class="toggle-state-pill">${isAllOn ? 'ON' : 'OFF'}</span>
+        </button>
+      `;
+
+      top10Results.forEach((n, idx) => {
+        const rank = idx + 1;
+        const isOn = selectedResultMode === idx;
+        const shortName = (n.name || n.id || '').slice(0, 20);
+        const col = typeColor(n.type);
+        const fp = n.file_path ? ` (${n.file_path})` : '';
+        html += `
+          <button type="button" id="rank-btn-${rank}" class="toggle-btn result-btn ${isOn ? 'is-on' : ''}"
+                  onclick="toggleResultButton(${idx})"
+                  title="#${rank} [${esc(n.type)}] ${esc(n.name)}${esc(fp)} — ${esc(n.description || '')}">
+            <span class="rank-badge">#${rank}</span>
+            <span class="type-dot" style="background:${col};"></span>
+            <span>${esc(shortName)}</span>
+            <span class="toggle-state-pill">${isOn ? 'ON' : 'OFF'}</span>
+          </button>
+        `;
+      });
+
+      strip.innerHTML = html;
+      updateCliCommandPreview();
+    }
+
+    function recomputeResultsAndGraph() {
+      const rawQ = document.getElementById('kg-search-input').value || '';
+      const orGroups = parseQueryExpr(rawQ);
+      const ranked = matchAndRankNodes(orGroups);
+      totalMatchesCount = ranked.length;
+      document.getElementById('hud-match-count').textContent = totalMatchesCount;
+
+      // Restrict strictly to Top 10 ranks (#1 .. #10)
+      top10Results = ranked.slice(0, 10);
+
+      if (selectedResultMode !== 'all' && selectedResultMode >= top10Results.length) {
+        selectedResultMode = 'all';
+      }
+      renderTopLineResultButtons();
+      renderGraphicalKnowledgeGraph();
+    }
+
+    function updateInspector(n, rankNum) {
+      const contentEl = document.getElementById('inspector-content');
+      const actionsEl = document.getElementById('inspector-actions');
+      if (!n) {
+        contentEl.innerHTML = `<span>Enter search text above or click any <strong>#1–#10</strong> result button on the top line to focus the Knowledge Graph on that result node.</span>`;
+        actionsEl.innerHTML = '';
+        return;
+      }
+      const outs = (OUT_EDGES.get(n.id) || []).filter(e => NODE_MAP.has(e.target) && enabledTypes.has((NODE_MAP.get(e.target) || {}).type));
+      const ins = (IN_EDGES.get(n.id) || []).filter(e => NODE_MAP.has(e.source) && enabledTypes.has((NODE_MAP.get(e.source) || {}).type));
+      const col = typeColor(n.type);
+      const lineno = (n.metadata && n.metadata.lineno) ? `:${n.metadata.lineno}` : '';
+      const fp = (n.file_path || 'N/A') + lineno;
+      const rankPrefix = rankNum ? `<span class="rank-badge">#${rankNum}</span>` : '';
+
+      contentEl.innerHTML = `
+        ${rankPrefix}
+        <span class="type-dot" style="background:${col};"></span>
+        <strong>${esc(n.name)}</strong>
+        <code>${esc(n.type)}</code>
+        <span>Path: <code>${esc(fp)}</code></span>
+        <span>Synapses: <strong>${ins.length} in / ${outs.length} out</strong></span>
+        <span style="color:#94a3b8;">${esc((n.description || '').slice(0, 95))}</span>
+      `;
+      actionsEl.innerHTML = `
+        <button type="button" class="hud-btn" onclick="focusNodeInGraph('${esc(n.id)}')">🎯 Focus Node Graph</button>
+      `;
+    }
+
+    function ensure3DSphereGradients() {
+      const defs = document.querySelector('#kg-svg defs');
+      if (!defs || document.getElementById('grad3d-default')) return;
+      let gradHtml = '';
+      const allCols = Object.assign({ default: '#38bdf8' }, TYPE_COLORS);
+      Object.keys(allCols).forEach(k => {
+        const c = allCols[k];
+        gradHtml += `
+          <radialGradient id="grad3d-${k}" cx="32%" cy="28%" r="70%" fx="32%" fy="28%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+            <stop offset="28%" stop-color="${c}" stop-opacity="0.95"/>
+            <stop offset="72%" stop-color="${c}" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#050811" stop-opacity="0.95"/>
+          </radialGradient>`;
+      });
+      defs.insertAdjacentHTML('beforeend', gradHtml);
+    }
+
+    function renderGraphicalKnowledgeGraph() {
+      ensure3DSphereGradients();
+      const stage = document.getElementById('kg-graph-stage');
+      const W = stage.clientWidth || 1280;
+      const H = stage.clientHeight || 720;
+      const rawQ = (document.getElementById('kg-search-input').value || '').trim();
+
+      const nodes3D = new Map();
+      const rankLabels = new Map();
+      top10Results.forEach((n, i) => rankLabels.set(n.id, i + 1));
+
+      let modeTitle = '';
+      let edgesToDraw = [];
+      const maxR = Math.min(W, H) * 0.44;
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+      const placeFibonacciSphereShell = (arr, shellR, baseRadiusPx, roleName) => {
+        const len = arr.length;
+        if (!len) return;
+        arr.forEach((n, idx) => {
+          let x3d = 0, y3d = 0, z3d = 0;
+          if (len === 1) {
+            x3d = 0; y3d = 0; z3d = 0;
+          } else {
+            const yNorm = 1 - (idx / (len - 1)) * 2;
+            const rAtY = Math.sqrt(Math.max(0, 1 - yNorm * yNorm));
+            const theta = goldenAngle * idx;
+            x3d = shellR * rAtY * Math.cos(theta);
+            y3d = shellR * yNorm * 0.84;
+            z3d = shellR * rAtY * Math.sin(theta);
+          }
+          nodes3D.set(n.id, { node: n, role: roleName, r: baseRadiusPx, x3d, y3d, z3d });
+        });
+      };
+
+      if (selectedResultMode !== 'all' && top10Results[selectedResultMode]) {
+        // FOCUSED SINGLE RESULT NODE (#1..#10) 3D SPATIAL STARBURST
+        const target = top10Results[selectedResultMode];
+        const rankNum = selectedResultMode + 1;
+        modeTitle = `3D Spatial Focus #${rankNum}: [${target.type}] ${target.name}`;
+        nodes3D.set(target.id, { node: target, role: 'target', r: 25, x3d: 0, y3d: 0, z3d: 0 });
+
+        const ins = (IN_EDGES.get(target.id) || [])
+          .filter(e => NODE_MAP.has(e.source) && enabledTypes.has(NODE_MAP.get(e.source).type))
+          .slice(0, 22);
+        const outs = (OUT_EDGES.get(target.id) || [])
+          .filter(e => NODE_MAP.has(e.target) && enabledTypes.has(NODE_MAP.get(e.target).type))
+          .slice(0, 22);
+
+        const spreadR = maxR * 0.78;
+        ins.forEach((e, idx) => {
+          const sn = NODE_MAP.get(e.source);
+          if (!sn) return;
+          if (!nodes3D.has(sn.id)) {
+            const t = ins.length === 1 ? 0 : (idx / (ins.length - 1)) * 2 - 1;
+            const ang = idx * 1.15;
+            const ringRad = spreadR * 0.58 * Math.sqrt(Math.max(0.15, 1 - t * t * 0.65));
+            nodes3D.set(sn.id, {
+              node: sn,
+              role: 'in',
+              r: 14,
+              x3d: -spreadR * 0.68,
+              y3d: t * spreadR * 0.65,
+              z3d: ringRad * Math.sin(ang),
+            });
+          }
+          edgesToDraw.push({ source: sn.id, target: target.id, relation: e.relation, kind: 'in' });
+        });
+
+        outs.forEach((e, idx) => {
+          const tn = NODE_MAP.get(e.target);
+          if (!tn) return;
+          if (!nodes3D.has(tn.id)) {
+            const t = outs.length === 1 ? 0 : (idx / (outs.length - 1)) * 2 - 1;
+            const ang = idx * 1.15 + 0.6;
+            const ringRad = spreadR * 0.58 * Math.sqrt(Math.max(0.15, 1 - t * t * 0.65));
+            nodes3D.set(tn.id, {
+              node: tn,
+              role: 'out',
+              r: 14,
+              x3d: spreadR * 0.68,
+              y3d: t * spreadR * 0.65,
+              z3d: ringRad * Math.sin(ang),
+            });
+          }
+          edgesToDraw.push({ source: target.id, target: tn.id, relation: e.relation, kind: 'out' });
+        });
+
+        updateInspector(target, rankNum);
+      } else if (rawQ && top10Results.length > 0) {
+        // ALL RESULTS MODE (3D Inner Core Constellation + 3D Outer Neighbor Cloud)
+        modeTitle = `3D Spatial Top ${top10Results.length} Results (#1–#${top10Results.length}) for "${rawQ}"`;
+        placeFibonacciSphereShell(top10Results, top10Results.length === 1 ? 0 : maxR * 0.36, 19, 'top10');
+
+        const neighborList = [];
+        top10Results.forEach(n => {
+          const outs = (OUT_EDGES.get(n.id) || []).slice(0, 6);
+          const ins = (IN_EDGES.get(n.id) || []).slice(0, 6);
+          outs.forEach(e => {
+            const tn = NODE_MAP.get(e.target);
+            if (tn && enabledTypes.has(tn.type)) {
+              if (!nodes3D.has(tn.id) && !neighborList.some(x => x.id === tn.id)) {
+                neighborList.push(tn);
+              }
+              edgesToDraw.push({ source: n.id, target: tn.id, relation: e.relation, kind: 'out' });
+            }
+          });
+          ins.forEach(e => {
+            const sn = NODE_MAP.get(e.source);
+            if (sn && enabledTypes.has(sn.type)) {
+              if (!nodes3D.has(sn.id) && !neighborList.some(x => x.id === sn.id)) {
+                neighborList.push(sn);
+              }
+              edgesToDraw.push({ source: sn.id, target: n.id, relation: e.relation, kind: 'in' });
+            }
+          });
+        });
+
+        placeFibonacciSphereShell(neighborList, maxR * 0.88, 11, 'neighbor');
+        updateInspector(top10Results[0], 1);
+      } else {
+        // SIMPLE, MEMORY-LIGHT 3D SPATIAL MULTI-SHELL SPHERE (Capped at Top 150 Hub Nodes & 200 Edges for Large Graphs)
+        const allFiltered = KG_DATA.nodes
+          .filter(n => enabledTypes.has(n.type))
+          .sort((a, b) => (DEGREE_MAP.get(b.id) || 0) - (DEGREE_MAP.get(a.id) || 0));
+        const MAX_3D_NODES = 150;
+        const MAX_3D_EDGES = 200;
+        const activeAll = allFiltered.length > MAX_3D_NODES ? allFiltered.slice(0, MAX_3D_NODES) : allFiltered;
+        const totalInTable = (KG_DATA.metadata && KG_DATA.metadata.total_vectors_in_table) || KG_DATA.nodes.length;
+        modeTitle = allFiltered.length > MAX_3D_NODES
+          ? `Full Codebase Graphical Knowledge Graph (Top ${activeAll.length} Hub Nodes of ${totalInTable} • 3D Spatial)`
+          : `Full Codebase Graphical Knowledge Graph (${activeAll.length} Nodes • 3D Spatial)`;
+
+        const shell1Types = new Set(['cluster_node', 'network_device', 'cluster_service', 'k8s_resource', 'document_file']);
+        const shell2Types = new Set(['python_module', 'html_template', 'dockerfile', 'yaml_config', 'env_config', 'config_file', 'requirements_file', 'document_section', 'document']);
+        const shell3Types = new Set(['shell_script', 'sql_file', 'python_class', 'topic_entity', 'api_endpoint']);
+
+        const shell1 = activeAll.filter(n => shell1Types.has(n.type));
+        const shell2 = activeAll.filter(n => shell2Types.has(n.type));
+        const shell3 = activeAll.filter(n => shell3Types.has(n.type));
+        const remaining = activeAll.filter(n => !shell1Types.has(n.type) && !shell2Types.has(n.type) && !shell3Types.has(n.type));
+
+        if (activeAll.length <= 30) {
+          placeFibonacciSphereShell(activeAll, maxR * 0.62, 16, 'core');
+        } else {
+          placeFibonacciSphereShell(shell1, maxR * 0.30, 14, 'core');
+          placeFibonacciSphereShell(shell2, maxR * 0.56, 11, 'mid');
+          placeFibonacciSphereShell(shell3, maxR * 0.80, 9, 'mid');
+          placeFibonacciSphereShell(remaining, maxR * 0.98, 7.5, 'outer');
+        }
+
+        for (let i = 0; i < KG_DATA.edges.length; i++) {
+          if (edgesToDraw.length >= MAX_3D_EDGES) break;
+          const e = KG_DATA.edges[i];
+          if (nodes3D.has(e.source) && nodes3D.has(e.target)) {
+            edgesToDraw.push({ source: e.source, target: e.target, relation: e.relation, kind: 'net' });
+          }
+        }
+        updateInspector(inspectedNodeId ? NODE_MAP.get(inspectedNodeId) : (top10Results[0] || null), rankLabels.get(inspectedNodeId));
+      }
+
+      _scene3D = { nodes3D, edgesToDraw, rankLabels, modeTitle, maxR };
+      document.getElementById('hud-mode-title').textContent = modeTitle;
+      document.getElementById('hud-node-count').textContent = nodes3D.size;
+      document.getElementById('hud-edge-count').textContent = edgesToDraw.length;
+      projectAndRender3DScene();
+    }
+
+    function projectAndRender3DScene() {
+      const vp = document.getElementById('kg-viewport');
+      const stage = document.getElementById('kg-graph-stage');
+      if (!vp || !stage) return;
+      const W = stage.clientWidth || 1280;
+      const H = stage.clientHeight || 720;
+      const cx = W / 2;
+      const cy = H / 2;
+      const rawQ = (document.getElementById('kg-search-input')?.value || '').trim();
+
+      const { nodes3D, edgesToDraw, rankLabels, maxR } = _scene3D;
+      if (!nodes3D) return;
+
+      const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+      const fov = Math.max(W, H) * 0.95;
+
+      const projected = new Map();
+      const sortedNodes = [];
+
+      nodes3D.forEach((info, id) => {
+        const x1 = info.x3d * cosY + info.z3d * sinY;
+        const z1 = -info.x3d * sinY + info.z3d * cosY;
+        const y2 = info.y3d * cosX - z1 * sinX;
+        const z2 = info.y3d * sinX + z1 * cosX;
+
+        const persp = fov / Math.max(120, fov + z2);
+        const sx = cx + x1 * persp;
+        const sy = cy + y2 * persp;
+        const sr = Math.max(2.3, info.r * persp);
+        const depthNorm = Math.max(0, Math.min(1, (maxR - z2) / Math.max(1, 2 * maxR)));
+
+        const pObj = {
+          id,
+          node: info.node,
+          role: info.role,
+          x: sx,
+          y: sy,
+          r: sr,
+          zCam: z2,
+          persp,
+          depthNorm,
+        };
+        projected.set(id, pObj);
+        sortedNodes.push(pObj);
+      });
+
+      // Painter's algorithm: sort back-to-front (largest zCam = furthest away drawn first)
+      sortedNodes.sort((a, b) => b.zCam - a.zCam);
+
+      // Draw subtle 3D Spatial Equatorial & Meridian Wireframe Rings for 3D depth reference
+      let svgGuides = '';
+      const ringRadius = maxR * 0.92;
+      const build3DRingPath = (axis) => {
+        const steps = 40;
+        let d = '';
+        for (let i = 0; i <= steps; i++) {
+          const ang = (2 * Math.PI * i) / steps;
+          let gx = 0, gy = 0, gz = 0;
+          if (axis === 'xz') {
+            gx = ringRadius * Math.cos(ang);
+            gz = ringRadius * Math.sin(ang);
+          } else if (axis === 'xy') {
+            gx = ringRadius * Math.cos(ang);
+            gy = ringRadius * Math.sin(ang) * 0.84;
+          } else {
+            gy = ringRadius * Math.cos(ang) * 0.84;
+            gz = ringRadius * Math.sin(ang);
+          }
+          const x1 = gx * cosY + gz * sinY;
+          const z1 = -gx * sinY + gz * cosY;
+          const y2 = gy * cosX - z1 * sinX;
+          const z2 = gy * sinX + z1 * cosX;
+          const p = fov / Math.max(120, fov + z2);
+          const px = cx + x1 * p;
+          const py = cy + y2 * p;
+          d += (i === 0 ? `M ${px.toFixed(1)} ${py.toFixed(1)}` : ` L ${px.toFixed(1)} ${py.toFixed(1)}`);
+        }
+        return d;
+      };
+      svgGuides += `<path d="${build3DRingPath('xz')}" fill="none" stroke="#1e293b" stroke-width="1" stroke-dasharray="5,5" opacity="0.55"/>`;
+      svgGuides += `<path d="${build3DRingPath('xy')}" fill="none" stroke="#1e293b" stroke-width="1" stroke-dasharray="3,6" opacity="0.4"/>`;
+
+      let svgEdges = svgGuides;
+      const isDenseFullGraph = (edgesToDraw.length > 350 && selectedResultMode === 'all' && !rawQ);
+      edgesToDraw.forEach(e => {
+        const p1 = projected.get(e.source);
+        const p2 = projected.get(e.target);
+        if (!p1 || !p2) return;
+        const avgDepth = (p1.depthNorm + p2.depthNorm) * 0.5;
+        if (isDenseFullGraph) {
+          const isHubEdge = rankLabels.has(e.source) || rankLabels.has(e.target);
+          if (!isHubEdge && avgDepth < 0.22) return;
+          const lStroke = isHubEdge ? '#38bdf8' : '#475569';
+          const lOp = (isHubEdge ? 0.58 : 0.14 + avgDepth * 0.28).toFixed(2);
+          const lW = isHubEdge ? '1.2' : (0.55 + avgDepth * 0.55).toFixed(2);
+          svgEdges += `<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" stroke="${lStroke}" stroke-width="${lW}" opacity="${lOp}"/>`;
+          return;
+        }
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const mx = (p1.x + p2.x) / 2 - dy * 0.07;
+        const my = (p1.y + p2.y) / 2 + dx * 0.07;
+
+        let stroke = '#38bdf8';
+        let opacity = (0.25 + avgDepth * 0.55).toFixed(2);
+        let width = (0.9 + avgDepth * 0.9).toFixed(2);
+        let marker = 'url(#arrow-net)';
+        if (e.kind === 'out') {
+          stroke = '#22c55e'; opacity = '0.86'; width = '2'; marker = 'url(#arrow-out)';
+        } else if (e.kind === 'in') {
+          stroke = '#f59e0b'; opacity = '0.86'; width = '2'; marker = 'url(#arrow-in)';
+        }
+
+        svgEdges += `<path d="M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}" fill="none" stroke="${stroke}" stroke-width="${width}" opacity="${opacity}" marker-end="${marker}"/>`;
+        if (selectedResultMode !== 'all' && e.relation) {
+          svgEdges += `<text x="${mx.toFixed(1)}" y="${(my - 4).toFixed(1)}" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="monospace">${esc(e.relation.slice(0, 20))}</text>`;
+        }
+      });
+
+      let svgNodes = '';
+      const isDenseNodes = sortedNodes.length > 90;
+      sortedNodes.forEach(pObj => {
+        const id = pObj.id;
+        const n = pObj.node;
+        const col = typeColor(n.type);
+        const gradId = TYPE_COLORS[n.type] ? `grad3d-${n.type}` : 'grad3d-default';
+        const rank = rankLabels.get(id);
+        const shortName = (n.name || id).slice(0, 24);
+        const isTarget = pObj.role === 'target' || pObj.role === 'top10';
+        const isFrontHighlight = pObj.depthNorm > 0.72 && (n.type === 'cluster_node' || n.type === 'network_device' || n.type === 'document_file');
+        const alwaysShowLabel = !isDenseNodes || isTarget || Boolean(rank) || id === inspectedNodeId || isFrontHighlight;
+        const labelCls = alwaysShowLabel ? 'node-label-always' : 'node-label-auto';
+        const fpHint = n.file_path ? ` (${n.file_path})` : '';
+        const nodeAlpha = isTarget || rank ? 1.0 : Math.max(0.24, Math.min(1.0, 0.28 + pObj.depthNorm * 0.75));
+
+        svgNodes += `<g class="kg-node-group" opacity="${nodeAlpha.toFixed(2)}" transform="translate(${pObj.x.toFixed(1)},${pObj.y.toFixed(1)})" onmouseenter="isHoveringNode=true;highlightNodeEdges('${esc(id)}')" onmouseleave="isHoveringNode=false;clearHighlightNodeEdges()" onclick="onGraphNodeClick(event, '${esc(id)}')">`;
+        svgNodes += `<title>[${esc(n.type)}] ${esc(n.name)}${esc(fpHint)}
+${esc(n.description || '')}</title>`;
+        if (isTarget) {
+          svgNodes += `<ellipse rx="${(pObj.r + 8).toFixed(1)}" ry="${((pObj.r + 8) * 0.48).toFixed(1)}" fill="none" stroke="${col}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85"/>`;
+          svgNodes += `<circle r="${(pObj.r + 4).toFixed(1)}" fill="none" stroke="${col}" stroke-width="1.2" opacity="0.55"/>`;
+        }
+        svgNodes += `<circle class="node-core" r="${pObj.r.toFixed(1)}" fill="url(#${gradId})" stroke="${col}" stroke-width="${isTarget ? 2.4 : 1.1}"/>`;
+        if (rank) {
+          svgNodes += `<text x="0" y="3" text-anchor="middle" fill="#ffffff" font-size="${pObj.r >= 14 ? 9.5 : 7.5}" font-weight="800" font-family="monospace">#${rank}</text>`;
+        }
+        svgNodes += `<text class="${labelCls}" x="0" y="${(pObj.r + 11).toFixed(1)}" text-anchor="middle" fill="${alwaysShowLabel ? '#f8fafc' : '#38bdf8'}" font-size="${isTarget ? 11 : Math.max(8, 9.5 * pObj.persp).toFixed(1)}" font-weight="${isTarget || !alwaysShowLabel ? 700 : 500}" font-family="monospace">${esc(shortName)}</text>`;
+        svgNodes += `</g>`;
+      });
+
+      window._lastGraphPositions = projected;
+      window._lastVisibleNodes = nodes3D;
+      vp.innerHTML = `<g id="kg-base-edges">${svgEdges}</g><g id="kg-hover-edges"></g><g id="kg-nodes-layer">${svgNodes}</g>`;
+      applyTransform();
+    }
+
+    function toggle3DAutoSpin() {
+      autoSpin3D = !autoSpin3D;
+      const btn = document.getElementById('hud-3d-spin-btn');
+      if (btn) {
+        btn.textContent = autoSpin3D ? '🌐 3D Spin: ON' : '🌐 3D Spin: OFF';
+        btn.style.borderColor = autoSpin3D ? '#38bdf8' : '#475569';
+        btn.style.color = autoSpin3D ? '#38bdf8' : '#94a3b8';
+      }
+    }
+
+    function clearAndCompactGraphMemory() {
+      autoSpin3D = false;
+      const spinBtn = document.getElementById('hud-3d-spin-btn');
+      if (spinBtn) {
+        spinBtn.textContent = '🌐 3D Spin: OFF';
+        spinBtn.style.borderColor = '#475569';
+        spinBtn.style.color = '#94a3b8';
+      }
+      const hoverLayer = document.getElementById('kg-hover-edges');
+      if (hoverLayer) hoverLayer.innerHTML = '';
+      const drawer = document.getElementById('kg-prompt-drawer');
+      if (drawer) drawer.style.display = 'none';
+      const drawerBody = document.getElementById('kg-prompt-drawer-body');
+      if (drawerBody) drawerBody.textContent = '';
+      if (_scene3D && _scene3D.nodes3D) _scene3D.nodes3D.clear();
+      window._lastGraphPositions = null;
+      window._lastVisibleNodes = null;
+      inspectedNodeId = null;
+      selectedResultMode = 'all';
+      panX = 0; panY = 0; scale = 1;
+      rotY = -0.45; rotX = 0.28;
+      renderTopLineResultButtons();
+      renderGraphicalKnowledgeGraph();
+    }
+    window.freeGraphMemory = clearAndCompactGraphMemory;
+    window.addEventListener('pagehide', () => {
+      const vp = document.getElementById('kg-viewport');
+      if (vp) vp.innerHTML = '';
+      if (_scene3D && _scene3D.nodes3D) _scene3D.nodes3D.clear();
+      window._lastGraphPositions = null;
+      window._lastVisibleNodes = null;
+    });
+
+    function highlightNodeEdges(nodeId) {
+      const hoverLayer = document.getElementById('kg-hover-edges');
+      const positions = window._lastGraphPositions;
+      if (!hoverLayer || !positions || !positions.has(nodeId)) return;
+      const pSelf = positions.get(nodeId);
+      let html = '';
+      (OUT_EDGES.get(nodeId) || []).forEach(e => {
+        const pT = positions.get(e.target);
+        if (!pT) return;
+        html += `<line x1="${pSelf.x.toFixed(1)}" y1="${pSelf.y.toFixed(1)}" x2="${pT.x.toFixed(1)}" y2="${pT.y.toFixed(1)}" stroke="#22c55e" stroke-width="2.2" opacity="0.95" marker-end="url(#arrow-out)"/>`;
+      });
+      (IN_EDGES.get(nodeId) || []).forEach(e => {
+        const pS = positions.get(e.source);
+        if (!pS) return;
+        html += `<line x1="${pS.x.toFixed(1)}" y1="${pS.y.toFixed(1)}" x2="${pSelf.x.toFixed(1)}" y2="${pSelf.y.toFixed(1)}" stroke="#f59e0b" stroke-width="2.2" opacity="0.95" marker-end="url(#arrow-in)"/>`;
+      });
+      hoverLayer.innerHTML = html;
+    }
+
+    function clearHighlightNodeEdges() {
+      const hoverLayer = document.getElementById('kg-hover-edges');
+      if (hoverLayer) hoverLayer.innerHTML = '';
+    }
+
+    function onGraphNodeClick(evt, nodeId) {
+      evt.stopPropagation();
+      const n = NODE_MAP.get(nodeId);
+      if (!n) return;
+      inspectedNodeId = nodeId;
+      const rIdx = top10Results.findIndex(item => item.id === nodeId);
+      if (rIdx !== -1 && selectedResultMode !== rIdx) {
+        selectedResultMode = rIdx;
+        renderTopLineResultButtons();
+        renderGraphicalKnowledgeGraph();
+      } else {
+        focusNodeInGraph(nodeId);
+      }
+    }
+
+    function applyTransform() {
+      const vp = document.getElementById('kg-viewport');
+      vp.setAttribute('transform', `translate(${panX}, ${panY}) scale(${scale})`);
+      const svgEl = document.getElementById('kg-svg');
+      if (svgEl) {
+        if (scale >= 2.1) svgEl.classList.add('kg-zoomed-in');
+        else svgEl.classList.remove('kg-zoomed-in');
+      }
+    }
+
+    function zoomBy(factor) {
+      const stage = document.getElementById('kg-graph-stage');
+      const cx = (stage.clientWidth || 1280) / 2;
+      const cy = (stage.clientHeight || 720) / 2;
+      const newScale = Math.max(0.35, Math.min(3.5, scale * factor));
+      panX = cx - (cx - panX) * (newScale / scale);
+      panY = cy - (cy - panY) * (newScale / scale);
+      scale = newScale;
+      applyTransform();
+    }
+
+    function resetTransform() {
+      panX = 0; panY = 0; scale = 1;
+      rotY = -0.45; rotX = 0.28;
+      projectAndRender3DScene();
+    }
+
+    (function initStageInteraction() {
+      const stage = document.getElementById('kg-graph-stage');
+      stage.addEventListener('mousedown', e => {
+        if (e.target.closest('.kg-node-group') || e.target.closest('button') || e.target.closest('select')) return;
+        isDragging = true;
+        if (e.shiftKey || e.button === 2) {
+          dragMode = 'pan';
+          dragStartX = e.clientX - panX;
+          dragStartY = e.clientY - panY;
+        } else {
+          dragMode = 'orbit';
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          startRotY = rotY;
+          startRotX = rotX;
+        }
+        stage.classList.add('dragging');
+      });
+      window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        if (dragMode === 'pan') {
+          panX = e.clientX - dragStartX;
+          panY = e.clientY - dragStartY;
+          applyTransform();
+        } else {
+          const dx = e.clientX - dragStartX;
+          const dy = e.clientY - dragStartY;
+          rotY = startRotY + dx * 0.0065;
+          rotX = Math.max(-1.42, Math.min(1.42, startRotX + dy * 0.0065));
+          projectAndRender3DScene();
+        }
+      });
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+        stage.classList.remove('dragging');
+      });
+      stage.addEventListener('wheel', e => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.12 : 0.89;
+        const rect = stage.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const newScale = Math.max(0.35, Math.min(3.5, scale * factor));
+        panX = mx - (mx - panX) * (newScale / scale);
+        panY = my - (my - panY) * (newScale / scale);
+        scale = newScale;
+        applyTransform();
+      }, { passive: false });
+      window.addEventListener('resize', () => renderGraphicalKnowledgeGraph());
+
+      // Gentle 3D Spatial Auto-Rotation Loop
+      let lastTick = performance.now();
+      function animate3DLoop(now) {
+        const dt = now - lastTick;
+        lastTick = now;
+        if (autoSpin3D && !isDragging && !isHoveringNode && document.visibilityState !== 'hidden') {
+          rotY += (dt * 0.00022);
+          projectAndRender3DScene();
+        }
+        requestAnimationFrame(animate3DLoop);
+      }
+      requestAnimationFrame(animate3DLoop);
+    })();
+
+    function syncHashRankSelection() {
+      const h = window.location.hash || '';
+      const m = h.match(/^#(?:hit-kg-table-|tab-|rank-)?(\d+)$/);
+      if (m) {
+        const idx = parseInt(m[1], 10) - 1;
+        if (idx >= 0 && idx < top10Results.length) {
+          selectedResultMode = idx;
+          renderTopLineResultButtons();
+          renderGraphicalKnowledgeGraph();
+        }
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const qParam = params.get('q') || KG_DATA.initial_query || '';
+      const inp = document.getElementById('kg-search-input');
+      if (qParam) {
+        inp.value = qParam;
+        document.getElementById('kg-search-clear').style.display = 'block';
+      }
+      renderCliFlagCheckboxes();
+      renderNodeOptionButtons();
+      recomputeResultsAndGraph();
+      syncHashRankSelection();
+    });
+    window.addEventListener('hashchange', syncHashRankSelection);
+    window.addEventListener('message', (evt) => {
+      if (evt && evt.data && evt.data.type === 'KG_TRACE_QUERY') {
+        const q = String(evt.data.query || '').trim();
+        const inp = document.getElementById('kg-search-input');
+        if (inp) {
+          inp.value = q;
+          const clr = document.getElementById('kg-search-clear');
+          if (clr) clr.style.display = q ? 'block' : 'none';
+          selectedResultMode = 'all';
+          recomputeResultsAndGraph();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
